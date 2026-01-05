@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, FileText, Loader2, CheckCircle, AlertCircle, RefreshCw, Sparkles } from "lucide-react";
+import { X, Upload, FileText, Loader2, CheckCircle, AlertCircle, RefreshCw, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -68,8 +68,7 @@ export function FileUploadPanel({ isOpen, onClose }: { isOpen: boolean; onClose:
         },
       ]);
 
-      // Auto-expand the first file
-      setExpandedFile((prev) => prev || fileId);
+      setExpandedFile(fileId);
 
       try {
         setFiles((prev) =>
@@ -151,7 +150,6 @@ export function FileUploadPanel({ isOpen, onClose }: { isOpen: boolean; onClose:
       if (fileList) {
         processFiles(Array.from(fileList));
       }
-      // Reset input so same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -173,7 +171,6 @@ export function FileUploadPanel({ isOpen, onClose }: { isOpen: boolean; onClose:
 
   const handleRoleChange = async (role: string) => {
     setSelectedRole(role);
-    // Regenerate for files that don't have this role's summary
     for (const file of files) {
       if (file.status === "done" && !file.summaryByRole[role] && file.rawFile) {
         await regenerateSummaryForRole(file, role);
@@ -186,312 +183,356 @@ export function FileUploadPanel({ isOpen, onClose }: { isOpen: boolean; onClose:
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[99] bg-background/80 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[150] flex items-center justify-center">
+      {/* Solid backdrop - no blur */}
+      <div
+        className="absolute inset-0 bg-black/80"
         onClick={onClose}
       />
 
-      {/* Modal Panel */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-4 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[100] md:w-full md:max-w-3xl md:max-h-[85vh] overflow-hidden"
-      >
-        <div className="h-full flex flex-col rounded-2xl border border-border/50 bg-card text-card-foreground shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-border/50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Document Analyzer</h2>
-                <p className="text-xs text-muted-foreground">
-                  AI-powered analysis tailored to your role
-                </p>
-              </div>
+      {/* Modal Panel - solid background, no transparency */}
+      <div className="relative z-[151] w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col rounded-2xl border-2 border-border bg-card shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-border bg-card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-muted transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Document Analyzer</h2>
+              <p className="text-xs text-muted-foreground">
+                AI-powered analysis tailored to your role
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-muted transition-colors"
+          >
+            <X className="w-5 h-5 text-foreground" />
+          </button>
+        </div>
 
-          {/* Role Selection */}
-          <div className="p-5 border-b border-border/50 bg-muted/30">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm font-medium">Analyze as:</span>
-              <Select value={selectedRole} onValueChange={handleRoleChange}>
-                <SelectTrigger className="w-[200px] bg-background">
-                  <SelectValue>
-                    <span className="flex items-center gap-2">
-                      <span>{selectedRoleInfo?.icon}</span>
-                      <span>{selectedRoleInfo?.label}</span>
-                    </span>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      <div className="flex items-center gap-2">
-                        <span>{role.icon}</span>
-                        <div>
-                          <div className="font-medium">{role.label}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {role.description}
-                          </div>
+        {/* Role Selection - solid background */}
+        <div className="p-5 border-b border-border bg-muted">
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <span className="text-sm font-medium text-foreground">Analyze as:</span>
+            <Select value={selectedRole} onValueChange={handleRoleChange}>
+              <SelectTrigger className="w-[220px] bg-card border-border">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    <span>{selectedRoleInfo?.icon}</span>
+                    <span className="text-foreground">{selectedRoleInfo?.label}</span>
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value} className="py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{role.icon}</span>
+                      <div>
+                        <div className="font-medium text-foreground">{role.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {role.description}
                         </div>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              💡 Each role provides step-by-step action plans specific to that perspective
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            💡 Each role provides step-by-step action plans specific to that perspective
+          </p>
+        </div>
+
+        {/* Content Area - scrollable */}
+        <div className="flex-1 overflow-y-auto p-5 bg-card">
+          {/* Upload Dropzone */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            className={cn(
+              "relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer bg-muted/50",
+              isDragging
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50 hover:bg-muted"
+            )}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.txt,.md,.json,.csv"
+              multiple
+              className="hidden"
+            />
+            <Upload
+              className={cn(
+                "w-12 h-12 mx-auto mb-4 transition-colors",
+                isDragging ? "text-primary" : "text-muted-foreground"
+              )}
+            />
+            <p className="font-medium text-foreground mb-1">
+              Drop files here or click to upload
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Supports PDF, DOC, DOCX, TXT, MD, JSON, CSV
             </p>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Upload Dropzone */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              className={cn(
-                "relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/50 hover:bg-muted/30"
-              )}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.txt,.md,.json,.csv"
-                multiple
-                className="hidden"
-              />
-              <Upload
-                className={cn(
-                  "w-12 h-12 mx-auto mb-4 transition-colors",
-                  isDragging ? "text-primary" : "text-muted-foreground"
-                )}
-              />
-              <p className="font-medium text-foreground mb-1">
-                Drop files here or click to upload
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Supports PDF, DOC, DOCX, TXT, MD, JSON, CSV
-              </p>
-            </div>
-
-            {/* Uploaded Files */}
-            <AnimatePresence>
-              {files.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-6 space-y-4"
+          {/* Uploaded Files */}
+          {files.length > 0 && (
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground">
+                  Analyzed Documents ({files.length})
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFiles([])}
+                  className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-foreground">
-                      Analyzed Documents ({files.length})
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFiles([])}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Clear all
-                    </Button>
+                  Clear all
+                </Button>
+              </div>
+
+              {files.map((file) => (
+                <div
+                  key={file.id}
+                  className="bg-muted rounded-xl overflow-hidden border border-border"
+                >
+                  {/* File Header */}
+                  <div
+                    className="flex items-center gap-3 p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    onClick={() =>
+                      setExpandedFile(expandedFile === file.id ? null : file.id)
+                    }
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center shrink-0 border border-border">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate text-foreground">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                        {file.status === "done" && (
+                          <span className="ml-2 text-green-400">• Analysis ready</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {file.status === "processing" && (
+                        <div className="flex items-center gap-2 text-primary">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-xs">Analyzing...</span>
+                        </div>
+                      )}
+                      {file.status === "done" && (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      )}
+                      {file.status === "error" && (
+                        <AlertCircle className="w-5 h-5 text-destructive" />
+                      )}
+                      {expandedFile === file.id ? (
+                        <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile(file.id);
+                        }}
+                        className="p-1.5 rounded-full hover:bg-card transition-colors"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
                   </div>
 
-                  {files.map((file) => (
-                    <motion.div
-                      key={file.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="bg-muted/50 rounded-xl overflow-hidden border border-border/50"
-                    >
-                      {/* File Header */}
-                      <div
-                        className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/70 transition-colors"
-                        onClick={() =>
-                          setExpandedFile(expandedFile === file.id ? null : file.id)
-                        }
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center shrink-0 border border-border/50">
-                          <FileText className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{file.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(file.size / 1024).toFixed(1)} KB
-                            {file.status === "done" && (
-                              <span className="ml-2 text-green-500">• Analysis ready</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {file.status === "processing" && (
-                            <div className="flex items-center gap-2 text-primary">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span className="text-xs">Analyzing...</span>
-                            </div>
-                          )}
-                          {file.status === "done" && (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                          )}
-                          {file.status === "error" && (
-                            <AlertCircle className="w-5 h-5 text-destructive" />
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFile(file.id);
-                            }}
-                            className="p-1.5 rounded-full hover:bg-muted transition-colors"
-                          >
-                            <X className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Expanded Summary */}
-                      <AnimatePresence>
-                        {expandedFile === file.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="p-4 pt-0 border-t border-border/50">
-                              {file.error && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive text-sm mb-3">
-                                  <AlertCircle className="w-4 h-4 shrink-0" />
-                                  <span>{file.error}</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      file.rawFile &&
-                                      regenerateSummaryForRole(file, selectedRole)
-                                    }
-                                    className="ml-auto"
-                                  >
-                                    <RefreshCw className="w-3 h-3 mr-1" />
-                                    Retry
-                                  </Button>
-                                </div>
-                              )}
-
-                              {file.summaryByRole[selectedRole] && (
-                                <div className="mt-3">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <span>{selectedRoleInfo?.icon}</span>
-                                      <span>{selectedRoleInfo?.label} Perspective</span>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        file.rawFile &&
-                                        regenerateSummaryForRole(file, selectedRole)
-                                      }
-                                      className="text-xs"
-                                    >
-                                      <RefreshCw className="w-3 h-3 mr-1" />
-                                      Regenerate
-                                    </Button>
-                                  </div>
-                                  <div className="prose prose-sm prose-invert max-w-none bg-background/50 rounded-lg p-4 border border-border/30 max-h-[400px] overflow-y-auto">
-                                    <div
-                                      className="text-sm leading-relaxed"
-                                      dangerouslySetInnerHTML={{
-                                        __html: formatMarkdown(file.summaryByRole[selectedRole]),
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {file.status === "processing" && (
-                                <div className="flex flex-col items-center justify-center py-8 text-center">
-                                  <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Analyzing document as {selectedRoleInfo?.label}...
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    This may take a moment
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
+                  {/* Expanded Summary */}
+                  {expandedFile === file.id && (
+                    <div className="border-t border-border bg-card">
+                      <div className="p-4">
+                        {file.error && (
+                          <div className="flex items-center gap-2 p-3 bg-destructive/20 rounded-lg text-destructive text-sm mb-3 border border-destructive/30">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{file.error}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                file.rawFile &&
+                                regenerateSummaryForRole(file, selectedRole)
+                              }
+                              className="ml-auto"
+                            >
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Retry
+                            </Button>
+                          </div>
                         )}
-                      </AnimatePresence>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-border/50 bg-muted/30">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Powered by Google Gemini 2.5 Flash via Lovable AI</span>
-              <span>Switch roles to see different perspectives</span>
+                        {file.summaryByRole[selectedRole] && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+                                <span>{selectedRoleInfo?.icon}</span>
+                                <span>{selectedRoleInfo?.label} Perspective</span>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  file.rawFile &&
+                                  regenerateSummaryForRole(file, selectedRole)
+                                }
+                                className="text-xs"
+                              >
+                                <RefreshCw className="w-3 h-3 mr-1" />
+                                Regenerate
+                              </Button>
+                            </div>
+                            <div className="bg-background rounded-lg p-5 border border-border max-h-[400px] overflow-y-auto">
+                              <SummaryContent content={file.summaryByRole[selectedRole]} />
+                            </div>
+                          </div>
+                        )}
+
+                        {file.status === "processing" && (
+                          <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+                            <p className="text-sm text-foreground font-medium">
+                              Analyzing document as {selectedRoleInfo?.label}...
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              This may take a moment
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        {/* Footer - solid background */}
+        <div className="p-4 border-t border-border bg-muted">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Powered by Google Gemini 2.5 Flash</span>
+            <span>Switch roles to see different perspectives</span>
           </div>
         </div>
-      </motion.div>
-    </>
+      </div>
+    </div>
   );
 }
 
-// Simple markdown to HTML converter for the summary
-function formatMarkdown(text: string): string {
-  return text
-    // Headers
-    .replace(/^### (.+)$/gm, '<h4 class="text-sm font-semibold mt-4 mb-2 text-foreground">$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3 class="text-base font-semibold mt-5 mb-3 text-foreground border-b border-border/30 pb-2">$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2 class="text-lg font-bold mt-6 mb-3 text-foreground">$1</h2>')
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Lists
-    .replace(/^- (.+)$/gm, '<li class="ml-4 mb-1 text-muted-foreground">$1</li>')
-    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc mb-3">$&</ul>')
-    // Horizontal rule
-    .replace(/^---$/gm, '<hr class="my-4 border-border/50" />')
-    // Paragraphs (simple approach)
-    .replace(/\n\n/g, '</p><p class="mb-3 text-muted-foreground">')
-    // Wrap in paragraph tags
-    .replace(/^(.+)$/gm, (match) => {
-      if (match.startsWith('<')) return match;
-      return `<p class="mb-2 text-muted-foreground">${match}</p>`;
-    });
+// Component to render formatted summary content
+function SummaryContent({ content }: { content: string }) {
+  const lines = content.split('\n');
+  
+  return (
+    <div className="space-y-3 text-sm leading-relaxed">
+      {lines.map((line, index) => {
+        const trimmedLine = line.trim();
+        
+        if (!trimmedLine) return <div key={index} className="h-2" />;
+        
+        // H2 headers
+        if (trimmedLine.startsWith('## ')) {
+          return (
+            <h3 key={index} className="text-base font-semibold text-foreground mt-5 mb-2 pb-2 border-b border-border/50">
+              {trimmedLine.replace('## ', '')}
+            </h3>
+          );
+        }
+        
+        // H3 headers
+        if (trimmedLine.startsWith('### ')) {
+          return (
+            <h4 key={index} className="text-sm font-semibold text-foreground mt-4 mb-2">
+              {trimmedLine.replace('### ', '')}
+            </h4>
+          );
+        }
+        
+        // Bold text with colons (like "What to do:", "Why it matters:")
+        if (trimmedLine.startsWith('**') && trimmedLine.includes(':**')) {
+          const match = trimmedLine.match(/^\*\*(.+?):\*\*\s*(.*)$/);
+          if (match) {
+            return (
+              <p key={index} className="text-muted-foreground">
+                <strong className="text-foreground font-medium">{match[1]}:</strong> {match[2]}
+              </p>
+            );
+          }
+        }
+        
+        // List items
+        if (trimmedLine.startsWith('- ')) {
+          const itemContent = trimmedLine.slice(2);
+          // Check for bold content in list item
+          const boldMatch = itemContent.match(/^\*\*(.+?)\*\*:?\s*(.*)$/);
+          if (boldMatch) {
+            return (
+              <div key={index} className="flex gap-2 text-muted-foreground ml-4">
+                <span className="text-primary">•</span>
+                <span>
+                  <strong className="text-foreground font-medium">{boldMatch[1]}</strong>
+                  {boldMatch[2] && `: ${boldMatch[2]}`}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <div key={index} className="flex gap-2 text-muted-foreground ml-4">
+              <span className="text-primary">•</span>
+              <span>{itemContent}</span>
+            </div>
+          );
+        }
+        
+        // Horizontal rule
+        if (trimmedLine === '---') {
+          return <hr key={index} className="my-4 border-border/50" />;
+        }
+        
+        // Italic text (usually tips or notes)
+        if (trimmedLine.startsWith('*') && trimmedLine.endsWith('*') && !trimmedLine.startsWith('**')) {
+          return (
+            <p key={index} className="text-muted-foreground italic text-xs">
+              {trimmedLine.slice(1, -1)}
+            </p>
+          );
+        }
+        
+        // Regular paragraph - handle inline bold
+        const formattedLine = trimmedLine.replace(
+          /\*\*(.+?)\*\*/g, 
+          '<strong class="text-foreground font-medium">$1</strong>'
+        );
+        
+        return (
+          <p 
+            key={index} 
+            className="text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: formattedLine }}
+          />
+        );
+      })}
+    </div>
+  );
 }
