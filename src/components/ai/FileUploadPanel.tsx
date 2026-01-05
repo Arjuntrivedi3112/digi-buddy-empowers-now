@@ -6,6 +6,16 @@ import { X, Upload, FileText, Loader2, CheckCircle, AlertCircle } from "lucide-r
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
+const ROLES = [
+  { value: "general", label: "General" },
+  { value: "qa", label: "QA Engineer" },
+  { value: "backend", label: "Backend Dev" },
+  { value: "frontend", label: "Frontend Dev" },
+  { value: "security", label: "Security" },
+  { value: "product", label: "Product Manager" },
+  { value: "adops", label: "Ad Ops" },
+];
+
 	type UploadedFile = {
 	  id: string;
 	  name: string;
